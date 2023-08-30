@@ -48,6 +48,11 @@ struct chip8 {
     uint8_t key[16]; //Memory Mapped Keyboard
 };
 
+struct chip8_rom{
+    char* data;
+    int length;
+};
+
 struct chip8 cpu;
 
 /* Prints the internal state of the CPU.*/
@@ -61,11 +66,14 @@ void print_cpu_state(struct chip8 cpu) {
 }
 
 /* Loads a program rom into memory at the given offset. Often this is 0x200*/
-void load_rom(struct chip8 cpu, char* data, uint16_t offset) {
-
+void load_rom(struct chip8_rom* rom, uint16_t offset) {
+    for(int i = 0; i < rom->length; i++) {
+        int a = i + offset;
+        cpu.memory[a] = rom->data[i];
+    }
 }
 
-char* read_rom_from_file(char* filename) {   
+struct chip8_rom* read_rom_from_file(char* filename) {   
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
         perror("Error opening ROM file.");
@@ -94,18 +102,27 @@ char* read_rom_from_file(char* filename) {
     file_contents[file_size] = '\0'; //null terminator
 
     fclose(file);
-    return file_contents;
+
+    struct chip8_rom* rom = malloc(sizeof(struct chip8_rom));
+    rom->data = file_contents;
+    rom->length = file_size - 1; //the ROM struct does not need the null terminator
+    return rom;
 }
 
-int main() {
+int main(int argc, char** argv) {
 
-    char* file_contents = read_rom_from_file("test_opcode.ch8");
+    if(argc != 2) {
+        printf("Usage: chip8 <rom-file-name>\n");
+        exit(0);
+    }
 
+    struct chip8_rom* rom = read_rom_from_file(argv[1]);
     
     //TODO: Validate it?
     //TODO load it into memory
+    load_rom(rom, 0x200);
 
-    free(file_contents);
+    free(rom);
 
     //Begin running program
     //Fetch instruction
