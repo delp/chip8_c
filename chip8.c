@@ -119,7 +119,6 @@ int main(int argc, char** argv) {
     struct chip8_rom* rom = read_rom_from_file(argv[1]);
     
     //TODO: Validate it?
-    //TODO load it into memory
     load_rom(rom, 0x200);
 
     free(rom);
