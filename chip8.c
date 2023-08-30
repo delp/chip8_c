@@ -58,11 +58,11 @@ struct chip8 cpu;
 /* Prints the internal state of the CPU.*/
 void print_cpu_state(struct chip8 cpu) {
     printf("PC: 0x%X   I: 0x%X\n", cpu.pc, cpu.i);
-	printf("V: %X %X %X %X   %X %X %X %X\n   %X %X %X %X   %X %X %X %X\n",
-		cpu.v[0], cpu.v[1], cpu.v[2], cpu.v[3],
-		cpu.v[4], cpu.v[5], cpu.v[6], cpu.v[7],
-		cpu.v[8], cpu.v[9], cpu.v[10], cpu.v[11],
-		cpu.v[12], cpu.v[13], cpu.v[14], cpu.v[15]);
+    printf("V: %X %X %X %X   %X %X %X %X\n   %X %X %X %X   %X %X %X %X\n",
+        cpu.v[0], cpu.v[1], cpu.v[2], cpu.v[3],
+        cpu.v[4], cpu.v[5], cpu.v[6], cpu.v[7],
+        cpu.v[8], cpu.v[9], cpu.v[10], cpu.v[11],
+        cpu.v[12], cpu.v[13], cpu.v[14], cpu.v[15]);
 }
 
 /* Loads a program rom into memory at the given offset. Often this is 0x200*/
