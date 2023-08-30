@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-
+#include <time.h>
 
 uint8_t fontset[] = {
 	0xF0, 0x90, 0x90, 0x90, 0xF0, //0
@@ -109,12 +109,182 @@ struct chip8_rom* read_rom_from_file(char* filename) {
     return rom;
 }
 
+void emulate_cycle() {
+    
+    //fetch opcode
+    uint8_t a = cpu.memory[cpu.pc];
+    uint8_t b = cpu.memory[cpu.pc + 0x01];
+
+    //build opcode
+    uint16_t opcode = a;
+    opcode = opcode << 8;
+    opcode +=  b;
+    printf("Opcode: 0x%X\n", opcode);
+
+	// increment pc
+	cpu.pc += 0x02;
+
+	// Decode Opcode
+	/*
+	   "X: The second nibble. Used to look up one of the 16 registers (VX) from V0 through VF.
+	    Y: The third nibble. Also used to look up one of the 16 registers (VY) from V0 through VF.
+	    N: The fourth nibble. A 4-bit number.
+	    NN: The second byte (third and fourth nibbles). An 8-bit immediate number.
+	    NNN: The second, third and fourth nibbles. A 12-bit immediate memory address."
+	*/
+
+    //nibble 1
+    uint16_t foo = opcode & 0xF000;
+    foo = foo >> 8;
+    uint8_t prefix = (uint8_t)foo;
+
+    //X
+    foo = opcode & 0x0F00;
+    foo = foo >> 8;
+    uint8_t x = (uint8_t)foo;
+
+    //Y
+    foo = opcode & 0X00F0;
+    foo = foo >> 8;
+    uint8_t y = (uint8_t)foo;
+
+    uint8_t N = opcode & 0x000F;
+    uint8_t NN = (uint8_t) opcode & 0x00FF;
+    uint16_t NNN = opcode & 0x0FFF;
+
+    printf("Decoded Opcode: X: %X, Y: %X, N: %X, NN:: %X, NNN:: %X\n",x, y, N, NN, NNN);
+
+    switch(prefix) {
+        case 0x00:
+            if(NN == 0xE0) {
+                for(int i = 0; i < 64 * 32; i++) {
+                    cpu.gfx[i] = 0;
+                }
+                break;
+            } else if(NN == 0xEE) {
+                cpu.pc = cpu.stack[cpu.sp];
+                cpu.sp--;
+                break;
+            }
+
+        case 0x10:
+            printf("JP addr\n\n");
+            cpu.pc = NNN;
+            break;
+
+        case 0x20:
+            printf("CALL addr\n\n");
+            cpu.sp++;
+            cpu.stack[cpu.sp] = cpu.pc;
+            cpu.pc = NNN;
+            break;
+
+        case 0x30:
+            printf("SE Vx\n\n");
+            if(cpu.v[x] == NN) {
+                cpu.pc += 0x02;
+            }
+            break;
+
+        case 0x40:
+            printf("SNE Vx\n\n");
+            if(cpu.v[x] != NN) {
+                cpu.pc += 0x02;
+            }
+            break;
+
+        case 0x50:
+            printf("SE Vx, Vy\n\n");
+            if(cpu.v[x] == cpu.v[y]) {
+                cpu.pc += 0x02;
+            }
+            break;
+
+        case 0x60:
+            printf("Set Register\n\n");
+            cpu.v[x] = NN;
+            break;
+
+        case 0x70:
+            printf("ADD Vx, byte\n\n");
+            cpu.v[x] = cpu.v[x] + NN;
+            break;
+
+        case 0x90:
+            printf("SNE Vx, Vy\n\n");
+            if(cpu.v[x] != cpu.v[y]) {
+                cpu.pc += 0x02;
+            }
+            break;
+
+        case 0xA0:
+            printf("Load I\n\n");
+            cpu.i = NNN;
+            break;
+
+        case 0xB0:
+            printf("JP V0, addr");
+            cpu.pc = cpu.v[0] + NNN;
+            break;
+        
+        case 0xC0:
+            printf("RND Vx, byte");
+            srand(time(NULL));
+            uint8_t random_byte = (uint8_t)(rand() % 256);
+            cpu.v[x] = random_byte & NN;
+            break;
+       
+        case 0xE0:
+            if(NN == 0x9E) {
+                printf("SKP Vx");
+                    if(cpu.key[x]) {
+                        cpu.pc += 0x02;
+                    }
+                break;
+
+            } else if (NN == 0xA1) {
+                printf("SKNP Vx");
+                    if(!cpu.key[x]) {
+                        cpu.pc += 0x02;
+                    }
+                break;
+            }
+    }
+}
+
+/* Zero out all the cpu's stuff*/
+void init_cpu() {
+    for(int i = 0; i < 16; i++) {
+        cpu.stack[i] = 0;
+    }
+    cpu.sp = 0;
+    for(int i = 0; i < 4096; i++) {
+        cpu.memory[i] = 0;
+    }
+    for(int i = 0; i < 16; i++) {
+        cpu.v[i] = 0;
+    }
+    cpu.pc = 0;
+    cpu.i = 0;
+    cpu.delaytimer = 0;
+    cpu.soundtimer = 0;
+    for(int i = 0; i < 64 * 32; i++) {
+        cpu.gfx[i] = 0;
+    }
+    for(int i = 0; i < 16; i++) {
+        cpu.key[i] = 0;
+    }
+}
+
 int main(int argc, char** argv) {
 
     if(argc != 2) {
         printf("Usage: chip8 <rom-file-name>\n");
         exit(0);
     }
+    
+    init_cpu();
+    cpu.pc = 0x200;
 
     struct chip8_rom* rom = read_rom_from_file(argv[1]);
     
@@ -131,7 +301,12 @@ int main(int argc, char** argv) {
     print_cpu_state(cpu);
     //Vscode is stupid so we have to flush in order to see our terminal output
     fflush(stdout);
-    //read input and update the memory mapped input?
+
+    while(1) {
+        //read input and update the memory mapped input?
+        emulate_cycle();
+        //draw the screen
+    }
 
     return 0;
 }
