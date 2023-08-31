@@ -210,6 +210,59 @@ void emulate_cycle() {
             cpu.v[x] = cpu.v[x] + NN;
             break;
 
+        case 0x80:
+            if(N == 1) {
+                printf("OR Vx, Vy\n\n");
+                cpu.v[x] = cpu.v[x] | cpu.v[y];
+                break;
+            } else if(N == 2) {
+                printf("AND Vx, Vy\n\n");
+                cpu.v[x] = cpu.v[x] & cpu.v[y];
+                break;
+            } else if(N == 3) {
+                printf("XOR Vx, Vy\n\n");
+                cpu.v[x] = cpu.v[x] ^ cpu.v[y];
+                break;
+            } else if(N == 4) {
+                printf("ADD Vx, Vy\n\n");
+                uint16_t sum = cpu.v[x] + cpu.v[y];
+                if(sum > 0x00FF) {
+                    cpu.v[0xF] = 1;
+                }
+                cpu.v[x] = sum & 0x00FF;
+                break;
+            } else if(N == 5) {
+                printf("SUB Vx, Vy");
+                //TODO Set Vx = Vx - Vy, set VF = NOT borrow.
+
+                // If Vx > Vy, then VF is set to 1, otherwise 0.
+                //Then Vy is subtracted from Vx, and the results stored in Vx.
+
+
+                break;
+            } else if(N == 0x07) {
+                printf("\n\n");
+
+            /* TODO THE REST OF THESE
+
+            8xy7 - SUBN Vx, Vy
+            Set Vx = Vy - Vx, set VF = NOT borrow.
+
+            If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
+            */
+
+                break;
+            } else if(N == 0x06) {
+                printf("SHR Vx {, Vy}\n\n");
+                cpu.v[x] = cpu.v[x] >> 1;
+                //TODO set VF?
+                break;
+            } else if (N == 0x0E) {
+                printf("SHL Vx, {, Vy}\n\n");
+                cpu.v[x] = cpu.v[x] << 1;
+                //TODO set VF?
+                break;
+            }
         case 0x90:
             printf("SNE Vx, Vy\n\n");
             if(cpu.v[x] != cpu.v[y]) {
@@ -223,30 +276,97 @@ void emulate_cycle() {
             break;
 
         case 0xB0:
-            printf("JP V0, addr");
+            printf("JP V0, addr\n\n");
             cpu.pc = cpu.v[0] + NNN;
             break;
         
         case 0xC0:
-            printf("RND Vx, byte");
+            printf("RND Vx, byte\n\n");
             srand(time(NULL));
             uint8_t random_byte = (uint8_t)(rand() % 256);
             cpu.v[x] = random_byte & NN;
             break;
+
+        case 0xD0:
+            printf("DRW Vx, Vy, nibble\n\n");
+            for(int i = 1; i <= N; i++) {
+                //TODO
+                /*
+                Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+
+                The interpreter reads n bytes from memory, starting at the address stored in I.
+                These bytes are then displayed as sprites on screen at coordinates (Vx, Vy).
+                Sprites are XORed onto the existing screen. If this causes any pixels to be
+                erased, VF is set to 1, otherwise it is set to 0. If the sprite is
+                positioned so part of it is outside the coordinates of the display, it
+                wraps around to the opposite side of the screen.
+                */
+            }
+            break;
        
         case 0xE0:
             if(NN == 0x9E) {
-                printf("SKP Vx");
+                printf("SKP Vx\n\n");
                     if(cpu.key[x]) {
                         cpu.pc += 0x02;
                     }
                 break;
 
             } else if (NN == 0xA1) {
-                printf("SKNP Vx");
+                printf("SKNP Vx\n\n");
                     if(!cpu.key[x]) {
                         cpu.pc += 0x02;
                     }
+                break;
+            }
+        case 0xF0:
+            if(NN == 0x07) {
+                printf("LD Vx, DT\n\n");
+                    cpu.v[x] = cpu.delaytimer;
+                break;
+            } else if(NN == 0x0A) {
+                printf("LD Vx, k\n\n");
+                    //TODO loop until a key is pressed then store it in vx
+
+                break;
+            } else if(NN == 0x15) {
+                printf("LD DT, Vx\n\n");
+                    cpu.delaytimer = cpu.v[x];
+                break;
+            } else if(NN == 0x18) {
+                printf("LD ST, Vx\n\n");
+                    cpu.soundtimer = cpu.v[x];
+                break;
+            } else if(NN == 0x1E) {
+                printf("ADD I, Vx\n\n");
+                    cpu.i = cpu.i + cpu.v[x];
+                break;
+            } else if(NN == 0x29) {
+                printf("LD F, Vx\n\n");
+                //TODO this is a sprite one
+                break;
+            } else if (NN ==  0x33) {
+                printf("LD B, Vx\n\n");
+                //TODO The interpreter takes the decimal value of Vx,
+                //and places the hundreds digit in memory at location in I,
+                //the tens digit at location I+1, and the ones digit at location I+2.
+
+                break;
+            } else if (NN == 0x55) {
+                printf("LD [I], Vx\n\n");
+                //TODO The interpreter copies the values of
+                //registers V0 through Vx into memory, starting at the address in I.
+
+                break;
+            } else if (NN == 0x65) {
+                printf("LD Vx, [I]\n\n");
+                //TODO The interpreter reads values from memory starting
+                //at location I into registers V0 through Vx.
+                int offset = 0;
+                for(int i = 0; i <= x; i++) {
+                    cpu.v[i] = cpu.memory[cpu.i + offset];
+                    offset++;
+                }
                 break;
             }
     }
@@ -273,6 +393,19 @@ void init_cpu() {
     }
     for(int i = 0; i < 16; i++) {
         cpu.key[i] = 0;
+    }
+}
+
+void print_gfx() {
+    for(int y = 0; y - 32; y++) {
+        for(int x = 0; x - 64; x++) {
+            if(cpu.gfx[y*64 + x]) {
+                printf("*");
+            } else {
+                printf(" ");
+            }
+        }
+        printf("\n");
     }
 }
 
@@ -306,6 +439,7 @@ int main(int argc, char** argv) {
         //read input and update the memory mapped input?
         emulate_cycle();
         //draw the screen
+        print_gfx();
     }
 
     return 0;
