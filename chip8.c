@@ -289,7 +289,18 @@ void emulate_cycle() {
 
         case 0xD0:
             printf("DRW Vx, Vy, nibble\n\n");
+            uint8_t byte;
+            int offset = 0;
+
+
+
+            //Perhaps the read and draw is done sequentially for this OP but I'm just going to read them
+            //all in at once and then draw them because that seems easier to debug.
             for(int i = 1; i <= N; i++) {
+                byte = cpu.memory[cpu.i + offset];
+                //TODO draw it to the screen;
+                offset++;
+            }
                 //TODO
                 /*
                 Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
@@ -301,7 +312,6 @@ void emulate_cycle() {
                 positioned so part of it is outside the coordinates of the display, it
                 wraps around to the opposite side of the screen.
                 */
-            }
             break;
        
         case 0xE0:
